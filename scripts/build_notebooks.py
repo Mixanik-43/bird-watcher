@@ -193,7 +193,9 @@ from birdlab.vlm import load_model, QACollator, evaluate, messages
 train_qa = make_qa(DATA, "train", balance=True)
 val_qa = make_qa(DATA, "val", heldout_wording=True)
 print(len(train_qa), len(val_qa), train_qa[0])
-model, processor = load_model()
+from transformers import set_seed
+set_seed(42)
+model, processor = load_model(target_mode=os.environ.get("BIRD_TARGETS", "all-linear"))
 '''),
 md('''## Processor и токенизация
 Рассмотрите IDs, токены и обратное декодирование. Совпадает ли число токенов с числом слов?
@@ -230,8 +232,10 @@ del batch, loss
 '''),
 md('''## До и после LoRA
 Используем новые формулировки вопросов на validation. Сначала исходная модель (нулевые
-LoRA-обновления), потом 100 шагов обучения. Ограниченный evaluation — только быстрый пилот.
+LoRA-обновления), потом 50 шагов обучения. Ограниченный evaluation — только быстрый пилот.
 Для окончательной оценки используйте все вопросы и отдельный test.
+По умолчанию адаптируем линейные слои языковой части: этот вариант дал прирост в эталоне.
+Для сравнения задайте BIRD_TARGETS=attention. Vision encoder и lm_head заморожены.
 '''), code('''import random
 random.Random(42).shuffle(val_qa)
 evaluation = val_qa[:int(os.environ.get("BIRD_EVAL_SIZE", "24"))]
@@ -240,10 +244,10 @@ print(before["tasks"])
 from transformers import Trainer, TrainingArguments
 RUN = ROOT / "runs/notebook_vlm"
 args = TrainingArguments(output_dir=str(RUN), max_steps=int(os.environ.get("BIRD_STEPS", "50")), learning_rate=2e-4,
-    per_device_train_batch_size=1, gradient_accumulation_steps=8,
+    per_device_train_batch_size=4, gradient_accumulation_steps=2,
     remove_unused_columns=False, report_to="none", save_strategy="no", logging_steps=5,
     bf16=torch.cuda.is_available() and torch.cuda.is_bf16_supported(),
-    gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant":False})
+    gradient_checkpointing=False)
 model.config.use_cache = False
 trainer = Trainer(model=model, args=args, train_dataset=train_qa, data_collator=collator)
 trainer.train()
@@ -312,7 +316,7 @@ if not repo.exists():
     subprocess.run(["git", "clone", "https://github.com/Mixanik-43/bird-watcher.git", str(repo)], check=True)
 os.chdir(repo)
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-e", ".[vlm]", "pytest>=8"], check=True)
-# Kaggle currently bundles torchao 0.10; PEFT 0.20 rejects it even for plain LoRA.
+# Kaggle currently bundles torchao 0.10; the tested PEFT rejects it even for plain LoRA.
 # No quantization is used here. Only remove it in this disposable Kaggle environment.
 subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"], check=True)
 '''), code('''import torch
@@ -327,5 +331,6 @@ if not Path("data/cub8/manifest.jsonl").exists():
     else:
         subprocess.run([sys.executable, "scripts/prepare_data.py"], check=True)
 '''), code('''subprocess.run([sys.executable, "scripts/train_resnet.py", "--epochs", "8"], check=True)
-'''), code('''subprocess.run([sys.executable, "scripts/train_vlm.py", "--steps", "50", "--eval-size", "24"], check=True)
+'''), code('''subprocess.run([sys.executable, "scripts/train_vlm.py", "--steps", "50", "--eval-size", "160",
+                "--targets", "all-linear", "--batch-size", "4", "--no-checkpointing"], check=True)
 ''')], False)
