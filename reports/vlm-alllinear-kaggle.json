@@ -1,0 +1,38 @@
+{
+  "source": "Condensed from the actual Kaggle runs/vlm-alllinear/metrics.json; full predictions and loss history are saved with the Kaggle version.",
+  "gpu": "Tesla T4",
+  "model": "Qwen/Qwen3.5-0.8B",
+  "targets": "all language linear layers; vision encoder and lm_head frozen",
+  "rank": 8,
+  "alpha": 16,
+  "steps": 50,
+  "microbatch": 4,
+  "gradient_accumulation": 2,
+  "gradient_checkpointing": false,
+  "trainable_parameters": 5411328,
+  "train_pairs": 422,
+  "validation_pairs": 157,
+  "training_seconds": 668.0801643740001,
+  "peak_allocated_gb": 5.369608192,
+  "versions": {
+    "torch": "2.10.0+cu128", "torchvision": "0.25.0+cu128",
+    "transformers": "5.17.0", "peft": "0.19.1", "accelerate": "1.13.0",
+    "pillow": "11.3.0", "numpy": "2.0.2"
+  },
+  "before": {"correct": 84, "accuracy": 0.535031847133758, "macro_balanced_accuracy": 0.5948604439453224},
+  "after": {"correct": 104, "accuracy": 0.6624203821656051, "macro_balanced_accuracy": 0.6848426650017123},
+  "shuffled": {"correct": 76, "accuracy": 0.4840764331210191, "macro_balanced_accuracy": 0.46964475357218327},
+  "train_majority": {"correct": 102, "accuracy": 0.6496815286624203, "macro_balanced_accuracy": 0.5},
+  "invalid_answers_in_each_evaluation": 0,
+  "adapter_reload_passed": true,
+  "tasks": {
+    "has_bill_shape::cone": {"n": 42, "yes": 16, "no": 26, "before_correct": 17, "after_correct": 29, "shuffled_correct": 22,
+      "before_balanced_accuracy": 0.5072115384615384, "after_balanced_accuracy": 0.7379807692307692},
+    "has_wing_pattern::striped": {"n": 36, "yes": 9, "no": 27, "before_correct": 21, "after_correct": 27, "shuffled_correct": 20,
+      "before_balanced_accuracy": 0.6851851851851851, "after_balanced_accuracy": 0.7592592592592593},
+    "has_breast_color::white": {"n": 39, "yes": 13, "no": 26, "before_correct": 22, "after_correct": 25, "shuffled_correct": 15,
+      "before_balanced_accuracy": 0.6346153846153846, "after_balanced_accuracy": 0.6730769230769231},
+    "has_wing_color::black": {"n": 40, "yes": 23, "no": 17, "before_correct": 24, "after_correct": 23, "shuffled_correct": 19,
+      "before_balanced_accuracy": 0.5524296675191815, "after_balanced_accuracy": 0.5690537084398977}
+  }
+}

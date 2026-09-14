@@ -1,0 +1,15 @@
+{
+  "hardware": "Kaggle Tesla T4",
+  "steps": 50,
+  "train_pairs": 422,
+  "validation_pairs": 24,
+  "trainable_parameters": 319488,
+  "training_seconds": 746.1572105749999,
+  "peak_allocated_gb": 3.095991808,
+  "versions": {"torch": "2.10.0+cu128", "transformers": "5.17.0", "peft": "0.19.1"},
+  "correct_before": 15,
+  "correct_after": 15,
+  "correct_shuffled": 12,
+  "invalid_answers": 0,
+  "conclusion": "Training and generation work, but this small pilot does not demonstrate a quality improvement."
+}

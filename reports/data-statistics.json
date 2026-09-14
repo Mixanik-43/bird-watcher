@@ -1,0 +1,68 @@
+{
+  "source": "https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz",
+  "archive_md5": "97eceeb196236b17998738112f37df78",
+  "seed": 42,
+  "images": 478,
+  "splits": {
+    "test": 240,
+    "train": 190,
+    "val": 48
+  },
+  "duplicate_ids_removed": [],
+  "attributes": {
+    "train": {
+      "has_bill_shape::cone": {
+        "no": 105,
+        "yes": 66
+      },
+      "has_breast_color::white": {
+        "no": 134,
+        "yes": 37
+      },
+      "has_wing_color::black": {
+        "no": 69,
+        "yes": 100
+      },
+      "has_wing_pattern::striped": {
+        "no": 130,
+        "yes": 39
+      }
+    },
+    "val": {
+      "has_bill_shape::cone": {
+        "no": 26,
+        "yes": 16
+      },
+      "has_breast_color::white": {
+        "no": 26,
+        "yes": 13
+      },
+      "has_wing_color::black": {
+        "no": 17,
+        "yes": 23
+      },
+      "has_wing_pattern::striped": {
+        "yes": 9,
+        "no": 27
+      }
+    },
+    "test": {
+      "has_bill_shape::cone": {
+        "no": 136,
+        "yes": 83
+      },
+      "has_breast_color::white": {
+        "no": 145,
+        "yes": 59
+      },
+      "has_wing_color::black": {
+        "yes": 107,
+        "no": 100
+      },
+      "has_wing_pattern::striped": {
+        "no": 164,
+        "yes": 39
+      }
+    }
+  }
+}
