@@ -47,7 +47,7 @@ class QACollator:
         return full
 
 
-def load_model(adapters=True):
+def load_model(adapters=True, target_mode="attention"):
     from transformers import AutoProcessor, Qwen3_5ForConditionalGeneration
     from peft import LoraConfig, get_peft_model
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -58,7 +58,7 @@ def load_model(adapters=True):
     if adapters:
         targets = [name for name, module in model.named_modules()
                    if isinstance(module, torch.nn.Linear) and "language_model" in name
-                   and name.rsplit(".", 1)[-1] in {"q_proj", "v_proj"}]
+                   and (target_mode == "all-linear" or name.rsplit(".", 1)[-1] in {"q_proj", "v_proj"})]
         if not targets:
             raise ValueError("No language attention targets found; inspect model.named_modules()")
         model = get_peft_model(model, LoraConfig(r=8, lora_alpha=16, lora_dropout=.05,
