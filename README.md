@@ -6,6 +6,10 @@
 **Статус:** эталон обучен на Kaggle Tesla T4; упражнения, решения и проверки готовы.
 ResNet: 214/240 = **89,17%** на тестовой подвыборке CUB после 8 эпох.
 Проверки запуска и качества VLM разделены в [отчёте](reports/validation.md).
+Qwen3.5-0.8B + LoRA: **59,49% → 68,48% macro balanced accuracy** на 157
+validation-вопросах. Обучение: 11 минут 8 секунд на T4, 5,37 GB пик выделенной памяти.
+Обычная accuracy 66,24% лишь немного выше большинства по train (64,97%);
+подробнее о контролях и ограничениях — в отчёте.
 
 [Журнал GPU-запусков в Kaggle](https://www.kaggle.com/code/mixanik/bird-watcher-gpu-validation)
 содержит реальные результаты и отладочные запуски. Для чистого повторения используйте
@@ -47,7 +51,7 @@ pip install -e '.[dev,vlm]'
 python scripts/prepare_data.py
 pytest -q
 python scripts/train_resnet.py
-python scripts/train_vlm.py --steps 50 --eval-size 160
+CUDA_VISIBLE_DEVICES=0 python scripts/train_vlm.py --steps 50 --eval-size 160 --targets all-linear --batch-size 4 --no-checkpointing
 ```
 
 Для локальных упражнений без VLM достаточно `pip install -e '.[dev]'`.
@@ -65,8 +69,9 @@ python scripts/train_vlm.py --steps 50 --eval-size 160
 В проверенном образе Kaggle предустановлен `torchao 0.10`, несовместимый с нашим PEFT.
 Проверочный ноутбук удаляет его из временной Kaggle-среды: квантизацию мы не используем.
 Локальное окружение эта ячейка не должна менять; она предназначена только для Kaggle.
-Версии Transformers и PEFT зафиксированы по реальному GPU-запуску. Время в отчётах
-не включает скачивание весов; на T4 используются обычные PyTorch kernels.
+Версии Transformers, PEFT и Accelerate зафиксированы по реальному GPU-запуску.
+Время обучения VLM не включает скачивание весов и генеративную оценку: полный проход
+по 157 вопросам занимает ещё несколько минут. На T4 используются обычные PyTorch kernels.
 
 ## Учебный маршрут
 
@@ -95,7 +100,8 @@ CUDA_VISIBLE_DEVICES=0 python scripts/train_vlm.py --steps 50 --eval-size 160 --
 
 Для быстрой проверки механики ноутбука: `BIRD_STEPS=2`, `BIRD_EVAL_SIZE=4`.
 Такой запуск не оценивает эффект обучения. По умолчанию учебный VLM-ноутбук использует
-50 шагов и 24 вопроса; для всех validation-вопросов установите `BIRD_EVAL_SIZE=160`.
+50 шагов language-wide LoRA и 24 вопроса; для всех validation-вопросов установите
+`BIRD_EVAL_SIZE=160`. Для сравнения более узкого адаптера задайте `BIRD_TARGETS=attention`.
 
 ## Свои фотографии
 
