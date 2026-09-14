@@ -77,8 +77,13 @@ def predict(model, processor, example):
 
 
 def evaluate(model, processor, examples):
-    records = [dict(image_id=x["image_id"], task=x["task"], truth=x["answer"],
-                    prediction=predict(model, processor, x)) for x in examples]
+    records = []
+    print(f"Evaluating {len(examples)} questions", flush=True)
+    for x in examples:
+        records.append(dict(image_id=x["image_id"], task=x["task"], truth=x["answer"],
+                            prediction=predict(model, processor, x)))
+        if len(records) % 25 == 0 or len(records) == len(examples):
+            print(f"  {len(records)}/{len(examples)}", flush=True)
     by_task = defaultdict(list)
     for record in records:
         by_task[record["task"]].append(record)
