@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "birdlab-cub"
+version = "0.1.0"
+description = "Two hands-on PyTorch and vision-language labs on CUB"
+requires-python = ">=3.12"
+dependencies = ["torch>=2.6", "torchvision>=0.21", "pillow>=10", "numpy>=1.26", "matplotlib>=3.8"]
+
+[project.optional-dependencies]
+vlm = ["transformers>=5.3,<6", "peft>=0.18,<1", "accelerate>=1.10,<2"]
+dev = ["pytest>=8", "nbformat>=5", "nbclient>=0.10", "ipykernel>=6"]
+
+[tool.setuptools.packages.find]
+include = ["birdlab*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
