@@ -16,6 +16,9 @@ def main():
     p.add_argument("--steps", type=int, default=100)
     p.add_argument("--eval-size", type=int, default=48)
     p.add_argument("--output", default="runs/vlm")
+    p.add_argument("--targets", choices=["attention", "all-linear"], default="attention")
+    p.add_argument("--batch-size", type=int, default=1)
+    p.add_argument("--no-checkpointing", action="store_true")
     args = p.parse_args()
     set_seed(42)
     output = Path(args.output)
@@ -26,7 +29,9 @@ def main():
     val = val[:args.eval_size]
     if not train or not val:
         raise ValueError("No QA examples")
-    model, processor = load_model()
+    if args.batch_size not in (1, 2, 4, 8):
+        raise ValueError("Choose a batch size dividing effective batch 8")
+    model, processor = load_model(target_mode=args.targets)
     collator = QACollator(processor)
     batch = collator(train[:2])
     loss = model(**{k: v.to(model.device) for k, v in batch.items()}).loss
@@ -39,10 +44,10 @@ def main():
     (output / "before.json").write_text(json.dumps(before, indent=2))
     bf16 = torch.cuda.is_available() and torch.cuda.is_bf16_supported()
     options = TrainingArguments(output_dir=str(output), max_steps=args.steps,
-        per_device_train_batch_size=1, gradient_accumulation_steps=8,
+        per_device_train_batch_size=args.batch_size, gradient_accumulation_steps=8 // args.batch_size,
         learning_rate=2e-4, logging_steps=5, save_strategy="no", report_to="none",
         remove_unused_columns=False, bf16=bf16, fp16=False,
-        gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False},
+        gradient_checkpointing=not args.no_checkpointing, gradient_checkpointing_kwargs={"use_reentrant": False},
         dataloader_num_workers=0, seed=42)
     model.config.use_cache = False
     trainer = Trainer(model=model, args=options, train_dataset=train, data_collator=collator)
@@ -58,7 +63,7 @@ def main():
         for i, x in enumerate(shuffled):
             x["image"] = val[(i+1) % len(val)]["image"]
     shuffled_score = evaluate(model, processor, shuffled)
-    report = dict(steps=args.steps, train_pairs=len(train), validation_pairs=len(val),
+    report = dict(steps=args.steps, targets=args.targets, microbatch=args.batch_size, train_pairs=len(train), validation_pairs=len(val),
         seconds=seconds, versions={k: importlib.metadata.version(k) for k in ("torch", "transformers", "peft")},
         gpu=torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu",
         peak_memory_gb=torch.cuda.max_memory_allocated()/1e9 if torch.cuda.is_available() else None,
