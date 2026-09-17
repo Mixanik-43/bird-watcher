@@ -22,7 +22,7 @@ def exercise(text, solution, stub):
 SETUP = '''
 from pathlib import Path
 import os, sys
-# Start in repository root or its notebooks/solutions directory.
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 ROOT = Path.cwd()
 if ROOT.name in {"notebooks", "solutions"}:
     ROOT = ROOT.parent
@@ -45,13 +45,9 @@ vlm_source = (ROOT / "birdlab/vlm.py").read_text()
 mask = "def answer_labels" + vlm_source.split("def answer_labels", 1)[1].split("class QACollator", 1)[0]
 
 resnet = [
-md('''# 1. От фиксированных признаков к обучению ResNet
-Цель: почувствовать, что модель — обычный `nn.Module`, состояние и градиенты которого
-можно контролировать. Метрики и разбиение считаем знакомыми.
+md('''# 1. Классификация птиц
 
-Пройдите TODO, затем Restart & Run All. Проверки диагностируют ошибки кода;
-accuracy не обязана совпасть до последнего знака. Подсказки — в `birdlab/`,
-полное решение — в `solutions/01_resnet.ipynb`.
+Заполните TODO и выполните все ячейки.
 '''), code(SETUP),
 code('''import json
 from torch.utils.data import DataLoader
@@ -61,7 +57,8 @@ classes = json.loads((DATA / "classes.json").read_text())
 train_data = Birds(DATA, "train", transforms(True))
 val_data = Birds(DATA, "val")
 fig, axes = plt.subplots(2, 4, figsize=(12, 6))
-for ax, row in zip(axes.flat, train_data.rows[::max(1, len(train_data)//8)]):
+examples = [next(row for row in train_data.rows if row["label"] == i) for i in range(len(classes))]
+for ax, row in zip(axes.flat, examples):
     ax.imshow(open_rgb(DATA / row["image"]))
     ax.set_title(row["species"]); ax.axis("off")
 plt.show()
@@ -116,7 +113,7 @@ for _ in range(20):
 assert run_epoch(tiny, loader, "cpu")["loss"] < before
 '''),
 md('''## Эксперимент: голова и последний блок
-Сначала 3 эпохи головы, затем 5 эпох последнего блока. Сохраняем лучший validation.
+Обучите голову 3 эпохи, затем последний блок — 5 эпох. Сохраните лучшую модель по validation.
 Сравните кривые; при желании замените голову на MLP и повторите с тем же seed.
 '''),
 code('''model = BirdClassifier(len(classes)).to(DEVICE)
@@ -154,12 +151,9 @@ md('''## Бонус: кэш признаков
 уже нельзя получить из одного вектора? Как это меняет сравнение с online-обучением?
 ''')]
 
-vlm = [md('''# 2. LoRA и вопросы к изображению
-Задача: ответить yes/no на разные вопросы о конкретной фотографии. Название вида не
-подаём во вход. Атрибуты вида не подставляем вместо атрибутов изображения.
+vlm = [md('''# 2. Вопросы к изображению
 
-Сначала собственный модуль и математика на CPU, затем processor, маска loss и LoRA
-на Qwen3.5-0.8B. Для GPU запуска используйте одну карту: CUDA_VISIBLE_DEVICES=0.
+Дообучим Qwen3.5-0.8B отвечать на вопросы о птицах.
 '''), code(SETUP),
 exercise('''## TODO 1 — LoRALinear
 $y=W_0x+b+(\\alpha/r)BAx$, где $A\\in R^{r\\times d_{in}}$, $B\\in R^{d_{out}\\times r}$.
@@ -210,7 +204,6 @@ exercise('''## TODO 2 — маска loss
 $L=-\\sum_t m_t\\log p(y_t|I,q,y_{<t})/\\sum_t m_t$.
 Верните копию input_ids; prompt и padding замените на -100. EOS ответа сохраняется.
 Используйте attention_mask, а не равенство pad_token_id: pad и EOS могут совпадать.
-Collator проверит границы prompt на настоящем chat template; не задавайте длину вручную.
 ''', mask,
 '''def answer_labels(input_ids, attention_mask, prompt_lengths):
     raise NotImplementedError("TODO: mask prompt and padding, preserve answer/EOS")
@@ -231,11 +224,9 @@ model.zero_grad(set_to_none=True)
 del batch, loss
 '''),
 md('''## До и после LoRA
-Используем новые формулировки вопросов на validation. Сначала исходная модель (нулевые
-LoRA-обновления), потом 50 шагов обучения. Ограниченный evaluation — только быстрый пилот.
-Для окончательной оценки используйте все вопросы и отдельный test.
-По умолчанию адаптируем линейные слои языковой части: этот вариант дал прирост в эталоне.
-Для сравнения задайте BIRD_TARGETS=attention. Vision encoder и lm_head заморожены.
+
+Сравните ответы до обучения и после 50 шагов LoRA.
+Обучаются адаптеры языковой части; остальные веса заморожены.
 '''), code('''import random
 random.Random(42).shuffle(val_qa)
 evaluation = val_qa[:int(os.environ.get("BIRD_EVAL_SIZE", "24"))]
@@ -257,15 +248,12 @@ print(after["tasks"])
 model.save_pretrained(RUN / "adapter")
 processor.save_pretrained(RUN / "adapter")
 '''),
-md('''## Эксперименты и выводы
-1. Для каждого вопроса сравните с большинством ответов **в train**, а не test.
-2. Перемешайте изображения: падает ли balanced accuracy? Учтите, что часть перемешанных
-   фото может иметь тот же правильный ответ.
-3. Сравните r=2 и r=8 при одинаковом числе шагов и данных.
-4. Почему уменьшение teacher-forced loss не гарантирует правильную генерацию?
-5. Каких вопросов модель не умеет решать? Не путайте новые формулировки с новыми задачами.
-6. Бонус: добавьте вопросы о видимости частей из parts/part_locs.txt; не выводите
-   видимость из отрицательной метки цвета.
+md('''## Эксперименты
+
+1. Сравните с ответом по большинству в train.
+2. Перемешайте изображения и повторите оценку.
+3. Сравните r=2 и r=8 при одинаковом числе шагов.
+4. Почему уменьшение loss не гарантирует улучшения генерации?
 '''),
 code('''from birdlab.vlm import predict, MODEL_ID
 from transformers import Qwen3_5ForConditionalGeneration
@@ -305,8 +293,7 @@ for name, cells in [("01_resnet.ipynb", resnet), ("02_vlm.ipynb", vlm)]:
         write(name, cells, solved)
 
 write("00_kaggle_validation.ipynb", [md('''# bird-watcher: GPU validation
-Включите Internet и GPU T4 x2. Этот ноутбук запускает эталон, упражнения находятся
-в 01_resnet и 02_vlm. Запуск скачивает официальный CUB и веса Qwen.
+Включите Internet и GPU. Выполните ячейки по порядку.
 '''), code('''import os, subprocess, sys
 from pathlib import Path
 assert Path("/kaggle/working").is_dir(), "This setup cell is for Kaggle only"
@@ -316,8 +303,7 @@ if not repo.exists():
     subprocess.run(["git", "clone", "https://github.com/Mixanik-43/bird-watcher.git", str(repo)], check=True)
 os.chdir(repo)
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-e", ".[vlm]", "pytest>=8"], check=True)
-# Kaggle currently bundles torchao 0.10; the tested PEFT rejects it even for plain LoRA.
-# No quantization is used here. Only remove it in this disposable Kaggle environment.
+# Remove the incompatible preinstalled torchao from this Kaggle session.
 subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"], check=True)
 '''), code('''import torch
 assert torch.cuda.is_available(), "Enable a Kaggle GPU"
