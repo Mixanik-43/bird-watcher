@@ -16,16 +16,17 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--data", default="data/cub8")
     p.add_argument("--steps", type=int, default=100)
-    p.add_argument("--eval-size", type=int, default=48)
+    p.add_argument("--eval-size", type=int, default=160)
     p.add_argument("--output", default="runs/vlm")
-    p.add_argument("--targets", choices=["attention", "all-linear"], default="attention")
-    p.add_argument("--batch-size", type=int, default=1)
+    p.add_argument("--targets", choices=["attention", "all-linear"], default="all-linear")
+    p.add_argument("--batch-size", type=int, default=4)
+    p.add_argument("--balance", action="store_true")
     p.add_argument("--no-checkpointing", action="store_true")
     args = p.parse_args()
     set_seed(42)
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
-    train = make_qa(args.data, "train", balance=True)
+    train = make_qa(args.data, "train", balance=args.balance)
     val = make_qa(args.data, "val", heldout_wording=True)
     random.Random(42).shuffle(val)
     val = val[:args.eval_size]
@@ -65,7 +66,8 @@ def main():
         for i, x in enumerate(shuffled):
             x["image"] = val[(i+1) % len(val)]["image"]
     shuffled_score = evaluate(model, processor, shuffled)
-    report = dict(steps=args.steps, targets=args.targets, microbatch=args.batch_size, train_pairs=len(train), validation_pairs=len(val),
+    report = dict(steps=args.steps, targets=args.targets, microbatch=args.batch_size, balanced_train=args.balance,
+        train_pairs=len(train), validation_pairs=len(val),
         seconds=seconds, versions={k: importlib.metadata.version(k) for k in ("torch", "transformers", "peft")},
         gpu=torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu",
         peak_memory_gb=torch.cuda.max_memory_allocated()/1e9 if torch.cuda.is_available() else None,
